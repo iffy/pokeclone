@@ -26,11 +26,13 @@
     var map = new mapboxgl.Map({
         container: 'map',
         zoom: 18,
-        minZoom: 16,
+        minZoom: 17,
         maxZoom: 19,
-        pitch: 60,
+        pitch: 45,
         style: 'mapbox://styles/mapbox/streets-v9',
         center: uvu,
+        dragPan: false,
+        boxZoom: false,
         attributionControl: false,
     });
 
@@ -43,8 +45,28 @@
         data: locationMarker,
     });
 
+    var monsters = {
+        "type": "GeometryCollection",
+        "geometries": [
+            {
+                "type": "Point",
+                "coordinates": uvu,
+            },
+            {
+                "type": "Point",
+                "coordinates": pickle,
+            }
+        ]
+    }
+    var monster_source = new mapboxgl.GeoJSONSource({
+        data: monsters,
+    })
+
     function setCurrentLocation(pos) {
         // https://www.mapbox.com/mapbox-gl-js/example/rotating-controllable-marker/
+
+        // To make it not herky-jerky:
+        // https://www.mapbox.com/mapbox-gl-js/example/animate-point-along-line/
         locationMarker.coordinates[0] = pos[0];
         locationMarker.coordinates[1] = pos[1];
         source.setData(locationMarker);
@@ -60,9 +82,9 @@
             "type": "circle",
             "source": "drone",
             "paint": {
-                "circle-radius": 12,
+                "circle-radius": 11,
                 "circle-color": "#000",
-                "circle-opacity": 0.8
+                "circle-opacity": 0.6
             }
         });
         map.addLayer({
@@ -75,15 +97,42 @@
                 "circle-opacity": 1
             }
         });
+
+        // monsters
+        map.addSource('monsters', monster_source);
+        map.addLayer({
+            id: 'monster',
+            type: 'circle',
+            source: 'monsters',
+            paint: {
+                'circle-radius': 7,
+                'circle-color': "#e74c3c",
+                "circle-opacity": 0.7
+            }
+        });
     });
 
     var point = map.project(uvu);
     console.log(point);
-    setInterval(function() {
-        setCurrentLocation(
-            [locationMarker.coordinates[0]+0.0001,locationMarker.coordinates[1]+0.0001]
-        );
-    }, 4000);
+    // setInterval(function() {
+    //     setCurrentLocation(
+    //         [locationMarker.coordinates[0]+0.0001,locationMarker.coordinates[1]+0.0001]
+    //     );
+    // }, 4000);
+    navigator.geolocation.watchPosition(
+        function(pos) {
+            console.log('got position');
+            console.log(pos);
+            //setCurrentLocation([pos.coords.longitude, pos.coords.latitude]);
+        },
+        function(err) {
+            console.error('Error getting position', err);
+        },
+        {
+            enableHighAccuracy: true,
+            maximumAge: 10000,
+            timeout: 60000,
+        })
     </script>
 </body>
 </html>
