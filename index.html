@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+    <script src='https://api.mapbox.com/mapbox-gl-js/v0.20.1/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v0.20.1/mapbox-gl.css' rel='stylesheet' />
+    <style>
+    body {
+        margin: 0;
+        padding: 0;
+    }
+    </style>
+</head>
+<body>
+    <div id='map' style='width: 100vw; height: 100vh;'></div>
+    <script>
+    var uvu = [-111.7125324, 40.2775619];
+    var pickle = [-111.7444981, 40.2811632];
+    var places = [
+        uvu,
+        pickle
+    ];
+    var idx = 0;
+
+    mapboxgl.accessToken = 'pk.eyJ1IjoiaWZmeSIsImEiOiJjaXFpeThkMTkwN3QxZnRuZWNranJ3eG40In0.vmI5t3J70nFXvdvbkfiA0w';
+    var map = new mapboxgl.Map({
+        container: 'map',
+        zoom: 18,
+        minZoom: 16,
+        maxZoom: 19,
+        pitch: 60,
+        style: 'mapbox://styles/mapbox/streets-v9',
+        center: uvu,
+        attributionControl: false,
+    });
+
+    var locationMarker = {
+        "type": "Point",
+        "coordinates": uvu,
+    };
+
+    var source = new mapboxgl.GeoJSONSource({
+        data: locationMarker,
+    });
+
+    function setCurrentLocation(pos) {
+        // https://www.mapbox.com/mapbox-gl-js/example/rotating-controllable-marker/
+        locationMarker.coordinates[0] = pos[0];
+        locationMarker.coordinates[1] = pos[1];
+        source.setData(locationMarker);
+        map.panTo(locationMarker.coordinates, {
+            duration: 500
+        });
+    }
+
+    map.on('load', function() {
+        map.addSource('drone', source);
+        map.addLayer({
+            "id": "drone-glow",
+            "type": "circle",
+            "source": "drone",
+            "paint": {
+                "circle-radius": 12,
+                "circle-color": "#000",
+                "circle-opacity": 0.8
+            }
+        });
+        map.addLayer({
+            "id": "drone-glow-strong",
+            "type": "circle",
+            "source": "drone",
+            "paint": {
+                "circle-radius": 10,
+                "circle-color": "#3498db",
+                "circle-opacity": 1
+            }
+        });
+    });
+
+    var point = map.project(uvu);
+    console.log(point);
+    setInterval(function() {
+        setCurrentLocation(
+            [locationMarker.coordinates[0]+0.0001,locationMarker.coordinates[1]+0.0001]
+        );
+    }, 4000);
+    </script>
+</body>
+</html>
