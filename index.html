@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title></title>
+    <title>PokeClone</title>
+    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
     <script src='https://api.mapbox.com/mapbox-gl-js/v0.20.1/mapbox-gl.js'></script>
     <link href='https://api.mapbox.com/mapbox-gl-js/v0.20.1/mapbox-gl.css' rel='stylesheet' />
     <style>
@@ -14,12 +15,6 @@
 <body>
     <div id='map' style='width: 100vw; height: 100vh;'></div>
     <script>
-    var uvu = [-111.7125324, 40.2775619];
-    var pickle = [-111.7444981, 40.2811632];
-    var places = [
-        uvu,
-        pickle
-    ];
     var idx = 0;
 
     mapboxgl.accessToken = 'pk.eyJ1IjoiaWZmeSIsImEiOiJjaXFpeThkMTkwN3QxZnRuZWNranJ3eG40In0.vmI5t3J70nFXvdvbkfiA0w';
@@ -30,7 +25,7 @@
         maxZoom: 19,
         pitch: 45,
         style: 'mapbox://styles/mapbox/streets-v9',
-        center: uvu,
+        center: [0,0],
         dragPan: false,
         boxZoom: false,
         attributionControl: false,
@@ -38,7 +33,7 @@
 
     var locationMarker = {
         "type": "Point",
-        "coordinates": uvu,
+        "coordinates": [0,0],
     };
 
     var source = new mapboxgl.GeoJSONSource({
@@ -47,16 +42,7 @@
 
     var monsters = {
         "type": "GeometryCollection",
-        "geometries": [
-            {
-                "type": "Point",
-                "coordinates": uvu,
-            },
-            {
-                "type": "Point",
-                "coordinates": pickle,
-            }
-        ]
+        "geometries": []
     }
     var monster_source = new mapboxgl.GeoJSONSource({
         data: monsters,
@@ -70,9 +56,17 @@
         locationMarker.coordinates[0] = pos[0];
         locationMarker.coordinates[1] = pos[1];
         source.setData(locationMarker);
-        map.panTo(locationMarker.coordinates, {
-            duration: 500
-        });
+        // map.easeTo({
+        //     center: locationMarker.coordinates,
+        // }, {
+        //     duration: 500
+        // });
+    }
+    function setCurrentHeading(degrees) {
+        map.easeTo({
+            center: locationMarker.coordinates,
+            bearing: degrees,
+        })
     }
 
     map.on('load', function() {
@@ -112,18 +106,26 @@
         });
     });
 
-    var point = map.project(uvu);
-    console.log(point);
-    // setInterval(function() {
-    //     setCurrentLocation(
-    //         [locationMarker.coordinates[0]+0.0001,locationMarker.coordinates[1]+0.0001]
-    //     );
-    // }, 4000);
+    setInterval(function() {
+        var amount = 0.001;
+        var dlong = (Math.random() * amount) - (amount / 2);
+        var dlat = (Math.random() * amount) - (amount / 2);
+
+        monsters.geometries.push({
+            type: 'Point',
+            coordinates: [
+                locationMarker.coordinates[0] + dlong,
+                locationMarker.coordinates[1] + dlat
+            ]
+        })
+        monster_source.setData(monsters);
+        console.log('added monster', monsters.geometries[monsters.geometries.length-1]);
+    }, 10000);
     navigator.geolocation.watchPosition(
         function(pos) {
             console.log('got position');
             console.log(pos);
-            //setCurrentLocation([pos.coords.longitude, pos.coords.latitude]);
+            setCurrentLocation([pos.coords.longitude, pos.coords.latitude]);
         },
         function(err) {
             console.error('Error getting position', err);
@@ -132,7 +134,23 @@
             enableHighAccuracy: true,
             maximumAge: 10000,
             timeout: 60000,
-        })
+        });
+    if (window.DeviceOrientationEvent) {
+      // Listen for the deviceorientation event and handle the raw data
+      window.addEventListener('deviceorientation', function(eventData) {
+        var compassdir;
+
+        if(event.webkitCompassHeading) {
+            // Apple works only with this, alpha doesn't work
+            compassdir = event.webkitCompassHeading;  
+        }
+        else {
+            compassdir = event.alpha;
+        }
+        //console.log('compassdir', compassdir);
+        setCurrentHeading(360 - compassdir);
+      });
+    }
     </script>
 </body>
 </html>
