@@ -1,0 +1,21 @@
+version: '2'
+services:
+  postgres:
+    image: mdillon/postgis:9.4
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+    ports:
+    - "5432:5432"
+
+  # http:
+  #   build:
+  #     context: .
+  #     dockerfile: docker/dbmaker.Dockerfile
+  #   command: docker/upgradeschema.sh
+  #   volumes:
+  #   - .:/code
+  #   working_dir: /code
+  #   links:
+  #   - postgres
+

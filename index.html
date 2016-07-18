@@ -1,156 +1,247 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>PokeClone</title>
-    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
-    <script src='https://api.mapbox.com/mapbox-gl-js/v0.20.1/mapbox-gl.js'></script>
-    <link href='https://api.mapbox.com/mapbox-gl-js/v0.20.1/mapbox-gl.css' rel='stylesheet' />
-    <style>
+  <title>PokeClone</title>
+  <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+  <script src='https://api.mapbox.com/mapbox-gl-js/v0.20.1/mapbox-gl.js'></script>
+  <link href='https://api.mapbox.com/mapbox-gl-js/v0.20.1/mapbox-gl.css' rel='stylesheet' />
+  <style>
     body {
-        margin: 0;
-        padding: 0;
+      margin: 0;
+      padding: 0;
     }
-    </style>
+  </style>
 </head>
 <body>
-    <div id='map' style='width: 100vw; height: 100vh;'></div>
-    <script>
+  <div id='map' style='width: 100vw; height: 100vh;'></div>
+  <script>
     var idx = 0;
 
     mapboxgl.accessToken = 'pk.eyJ1IjoiaWZmeSIsImEiOiJjaXFpeThkMTkwN3QxZnRuZWNranJ3eG40In0.vmI5t3J70nFXvdvbkfiA0w';
     var map = new mapboxgl.Map({
-        container: 'map',
-        zoom: 18,
-        minZoom: 17,
-        maxZoom: 19,
-        pitch: 45,
-        style: 'mapbox://styles/mapbox/streets-v9',
+      container: 'map',
+      zoom: 18,
+      minZoom: 17,
+      maxZoom: 19,
+      pitch: 45,
+        //style: 'mapbox://styles/mapbox/streets-v9',
+        //style: 'mapbox://styles/mapbox/outdoors-v9',
+        style: 'mapbox://styles/mapbox/dark-v9',
+        //style: 'mapbox://styles/mapbox/satellite-v9',
         center: [0,0],
         dragPan: false,
-        boxZoom: false,
+        boxZoom: true,
         attributionControl: false,
-    });
+      });
 
     var locationMarker = {
-        "type": "Point",
-        "coordinates": [0,0],
+      "type": "Point",
+      "coordinates": [0,0],
     };
-
     var source = new mapboxgl.GeoJSONSource({
-        data: locationMarker,
+      data: locationMarker,
     });
 
     var monsters = {
-        "type": "GeometryCollection",
-        "geometries": []
+      "type": "GeometryCollection",
+      "geometries": []
     }
     var monster_source = new mapboxgl.GeoJSONSource({
-        data: monsters,
+      data: monsters,
     })
 
-    function setCurrentLocation(pos) {
-        // https://www.mapbox.com/mapbox-gl-js/example/rotating-controllable-marker/
 
-        // To make it not herky-jerky:
-        // https://www.mapbox.com/mapbox-gl-js/example/animate-point-along-line/
-        locationMarker.coordinates[0] = pos[0];
-        locationMarker.coordinates[1] = pos[1];
-        source.setData(locationMarker);
-        // map.easeTo({
-        //     center: locationMarker.coordinates,
-        // }, {
-        //     duration: 500
-        // });
+    var current_location = [0,0];
+    var target_location = [0,0];
+    var from_location = [0, 0];
+    var current_bearing = 0;
+
+    var target_location_time = 0;
+    var location_move_time = 500;
+
+    // Location
+    function setDisplayedLocation(pos) {
+      locationMarker.coordinates[0] = pos[0];
+      locationMarker.coordinates[1] = pos[1];
+      source.setData(locationMarker);
+      map.setCenter(locationMarker.coordinates);
     }
-    function setCurrentHeading(degrees) {
-        map.easeTo({
-            center: locationMarker.coordinates,
-            bearing: degrees,
-        })
+    function updateDisplayedLocation(ts) {
+      var center = map.getCenter();
+      if (target_location[0] == current_location[0] && target_location[1] == current_location[1]
+        && target_location[0] == center.lng && target_location[1] == center.lat) {
+        return;
+      }
+      var percent = (ts - target_location_time) / location_move_time;
+      if (percent >= 1) {
+        // we have arrived.
+        current_location[0] = target_location[0];
+        current_location[1] = target_location[1];
+      } else {
+        // on our way...
+        current_location[0] = (target_location[0] - from_location[0]) * percent + from_location[0];
+        current_location[1] = (target_location[1] - from_location[1]) * percent + from_location[1];
+      }
+      setDisplayedLocation(current_location);
+    }
+    function setNewLocation(pos) {
+      from_location = current_location.slice(0);
+      target_location = pos;
+      target_location_time = performance.now();
+    }
+
+    // Bearing
+    function updateDisplayedBearing() {
+      map.setBearing(current_bearing);
+    }
+    function setNewBearing(degrees) {
+      current_bearing = degrees;
+    }
+    
+    
+
+    var animating = false;
+    var last_ts = 0;
+    function tick(delta, timestamp) {
+      updateDisplayedBearing();
+      updateDisplayedLocation(timestamp);
+    }
+    function _gotFrame(timestamp) {
+      var delta = timestamp - last_ts;
+      tick(delta, timestamp);
+      if (animating) {
+        requestAnimationFrame(_gotFrame);
+      }
+    }
+    function startAnimation() {
+      animating = true;
+      last_ts = performance.now();
+      requestAnimationFrame(_gotFrame);
+    }
+    function stopAnimation() {
+      animating = false;
     }
 
     map.on('load', function() {
-        map.addSource('drone', source);
-        map.addLayer({
-            "id": "drone-glow",
-            "type": "circle",
-            "source": "drone",
-            "paint": {
-                "circle-radius": 11,
-                "circle-color": "#000",
-                "circle-opacity": 0.6
-            }
-        });
-        map.addLayer({
-            "id": "drone-glow-strong",
-            "type": "circle",
-            "source": "drone",
-            "paint": {
-                "circle-radius": 10,
-                "circle-color": "#3498db",
-                "circle-opacity": 1
-            }
-        });
+      map.addSource('drone', source);
+      map.addLayer({
+        "id": "drone-glow",
+        "type": "circle",
+        "source": "drone",
+        "paint": {
+          "circle-radius": 11,
+          "circle-color": "#000",
+          "circle-opacity": 0.6
+        }
+      });
+      map.addLayer({
+        "id": "drone-glow-strong",
+        "type": "circle",
+        "source": "drone",
+        "paint": {
+          "circle-radius": 10,
+          "circle-color": "#3498db",
+          "circle-opacity": 1
+        }
+      });
 
-        // monsters
-        map.addSource('monsters', monster_source);
-        map.addLayer({
-            id: 'monster',
-            type: 'circle',
-            source: 'monsters',
-            paint: {
-                'circle-radius': 7,
-                'circle-color': "#e74c3c",
-                "circle-opacity": 0.7
-            }
-        });
+      // monsters
+      map.addSource('monsters', monster_source);
+      map.addLayer({
+        id: 'monster',
+        type: 'circle',
+        source: 'monsters',
+        paint: {
+          'circle-radius': 7,
+          'circle-color': "#e74c3c",
+          "circle-opacity": 0.7
+        }
+      });
+      startAnimation();
     });
 
-    setInterval(function() {
-        var amount = 0.001;
-        var dlong = (Math.random() * amount) - (amount / 2);
-        var dlat = (Math.random() * amount) - (amount / 2);
+    function createMonster() {
+      var amount = 0.001;
+      var dlong = (Math.random() * amount) - (amount / 2);
+      var dlat = (Math.random() * amount) - (amount / 2);
 
-        monsters.geometries.push({
-            type: 'Point',
-            coordinates: [
-                locationMarker.coordinates[0] + dlong,
-                locationMarker.coordinates[1] + dlat
-            ]
-        })
-        monster_source.setData(monsters);
-        console.log('added monster', monsters.geometries[monsters.geometries.length-1]);
-    }, 10000);
+      monsters.geometries.push({
+        type: 'Point',
+        coordinates: [
+        locationMarker.coordinates[0] + dlong,
+        locationMarker.coordinates[1] + dlat
+        ]
+      })
+      monster_source.setData(monsters);
+      console.log('added monster', monsters.geometries[monsters.geometries.length-1]);
+    }
+
     navigator.geolocation.watchPosition(
-        function(pos) {
-            console.log('got position');
-            console.log(pos);
-            setCurrentLocation([pos.coords.longitude, pos.coords.latitude]);
-        },
-        function(err) {
-            console.error('Error getting position', err);
-        },
-        {
-            enableHighAccuracy: true,
-            maximumAge: 10000,
-            timeout: 60000,
-        });
+      function(pos) {
+        setNewLocation([pos.coords.longitude, pos.coords.latitude]);
+      },
+      function(err) {
+        console.error('Error getting position', err);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 10000,
+        timeout: 60000,
+      });
     if (window.DeviceOrientationEvent) {
-      // Listen for the deviceorientation event and handle the raw data
       window.addEventListener('deviceorientation', function(eventData) {
         var compassdir;
-
         if(event.webkitCompassHeading) {
-            // Apple works only with this, alpha doesn't work
-            compassdir = event.webkitCompassHeading;  
+          // Apple works only with this, alpha doesn't work
+          compassdir = event.webkitCompassHeading;  
         }
         else {
-            compassdir = event.alpha;
+          compassdir = event.alpha;
         }
-        //console.log('compassdir', compassdir);
-        setCurrentHeading(360 - compassdir);
+        setNewBearing(360 - compassdir);
       });
     }
-    </script>
+
+    // Sockets
+    var sock;
+    var wsuri = "ws://" + window.location.hostname + ":" + window.location.port + "/ws";
+    var backoff = 1;
+    var maxbackoff = 60;
+    function connectSock() {
+      if ("WebSocket" in window) {
+        sock = new WebSocket(wsuri);
+      } else if ("MozWebSocket" in window) {
+        sock = new MozWebSocket(wsuri);
+      } else {
+        console.log("Browser does not support WebSocket!");
+        return
+      }
+      sock.onopen = function() {
+        backoff = 1;
+        console.log('sock', sock);
+        console.log("Connected to " + wsuri);
+        sock.send('hello');
+
+        console.log('after socksend');
+      }
+      sock.onclose = function(e) {
+        console.log("Connection closed (wasClean = " + e.wasClean + ", code = " + e.code + ", reason = '" + e.reason + "')");
+        sock = null;
+        backoff *= 1.5;
+        backoff = backoff > maxbackoff ? maxbackoff : backoff;
+        setTimeout(function() {
+          connectSock();
+        }, 1000 * backoff);
+      }
+      sock.onmessage = function(e) {
+        var msg = e.data;
+        console.log('message from server', msg);
+        if (msg == 'do:createMonster') {
+          createMonster();
+        }
+      }
+    }
+    connectSock();
+</script>
 </body>
 </html>
